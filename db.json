@@ -22,13 +22,8 @@
     },
     {
       "name": "test1",
-      "number": "11111",
+      "number": "1111",
       "id": 5
-    },
-    {
-      "name": "test2",
-      "number": "1212",
-      "id": 6
     }
   ]
 }
