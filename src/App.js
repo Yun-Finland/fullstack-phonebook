@@ -1,38 +1,8 @@
 import { useState, useEffect } from "react";
-import axios from 'axios';
-
-const Filter = ({searchTerm, setSearchTerm})=>{
-  return (
-    <div>
-      filter shown with <input value={searchTerm} onChange={(event)=>setSearchTerm(event.target.value)}/>
-    </div>
-  )
-}
-
-const PersonForm = ({addName, newName, setNewName, newNumber, setNewNumber}) => {
-  return(
-    <div>
-      <h1>Add a new</h1>
-      <form onSubmit={addName}>
-        <div>name: <input value={newName} onChange={(event)=> setNewName(event.target.value)} /></div>
-        <div>number: <input value={newNumber} onChange={(event)=>setNewNumber(event.target.value)} /></div>
-        <button type="submit">add</button>
-      </form>
-    </div>
-  )
-}
-
-const Persons = ({contacts, searchTerm}) => {
-  return (
-    <div>
-      <h1>Numbers</h1>
-      {contacts
-        .filter(n => (n.name.toLowerCase()).startsWith(searchTerm.toLowerCase()) )
-        .map(n =><li key={n.name}>{n.name} {n.number}</li>)
-      }
-    </div>
-  )
-}
+import personServer from "./personServer";
+import Persons from "./Components/Persons";
+import PersonForm from "./Components/PersonForm";
+import Filter from "./Components/Filter";
 
 const App = () => {
   const [ newName, setNewName] = useState('');
@@ -42,20 +12,28 @@ const App = () => {
   const [ contacts, setContacts] = useState([]);
 
   useEffect(()=>{
-    axios
-      .get('http://localhost:3001/persons')
-      .then(response => {
-        setContacts(response.data)
-      })
-  }, [])
+    personServer
+     .getAll()
+     .then(initialPersons =>setContacts(initialPersons))    
+  }, [contacts])
 
   const addName = (event) => {
     event.preventDefault();
 
     if(contacts.map(n=>n.name).includes(newName)){
-      window.alert(`${newName} is already added to the phonebook!`)
+      const ok = window.confirm(`${newName} is already added to the phonebook, replace the old number with a new one?`)
+      
+      if(ok){
+        const findPerson = contacts.find(n=> n.name === newName)
+        personServer
+          .update(findPerson.id, {...findPerson, number: newNumber})
+          .then(returnPerson =>{
+            setContacts(contacts.map(person => person.name === newName ? returnPerson : person))
+          })
+      }
+
       setNewName('');
-      setNewNumber('');
+      setNewNumber('');      
       return;
     }
 
@@ -64,9 +42,26 @@ const App = () => {
       number: newNumber
     }
 
-    setContacts(contacts.concat(newContact));
-    setNewName('');
-    setNewNumber('');
+    personServer
+      .create(newContact)
+      .then(returnedPerson => {
+        setContacts(contacts.concat(returnedPerson))
+        setNewName('');
+        setNewNumber('');
+      })
+  }
+
+  const deletePerson = (person) => {
+    const ok = window.confirm(`Delete ${person.name}`)
+
+    if(ok){
+      personServer
+        .remove(person.id)
+        .then(returnedPerson => {
+          setContacts(contacts.filter(person => (person.id !==returnedPerson.id)))
+        })
+
+    }
   }
 
   return (
@@ -85,9 +80,9 @@ const App = () => {
       <Persons 
         contacts={contacts}
         searchTerm={searchTerm}
+        deletePerson = {deletePerson}
       />
 
- 
     </div>
   )
 }
